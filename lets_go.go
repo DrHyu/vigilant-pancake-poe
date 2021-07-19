@@ -1,41 +1,52 @@
 package main
 
 import (
-	"encoding/json"
-	"io"
-	"net/http"
+	"fmt"
+	"log"
 	"os"
+	"time"
 
 	"drhyu.com/indexer/tradeApi"
 )
 
-func read_unstructured_json(r io.Reader) ([]byte, error) {
-	var result interface{}
-	json.NewDecoder(r).Decode(&result)
+func setupLogs() {
 
-	return json.MarshalIndent(result, "", "\t")
+	file, err := os.OpenFile("logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetOutput(file)
 }
 
-func read_structured_json(r io.Reader) ([]byte, error) {
-	var result tradeApi.JsonStruct
+func doTheThing() {
 
-	json.NewDecoder(r).Decode(&result)
+	setupLogs()
+	mFetcher := &tradeApi.ApiFetcher{}
+	exit := make(chan bool)
+	failure := make(chan error)
+	mFetcher.Init()
+	go mFetcher.Start("1224902497-1229569941-1187442478-1328449025-1276721127", exit, failure)
 
-	return json.MarshalIndent(result, "", "\t")
+	for {
+		select {
+		case item := <-mFetcher.NewItems:
+			// case <-mFetcher.NewItems:
+			fmt.Print(item.BaseType)
+			continue
+
+		case childErr := <-failure:
+			_ = childErr
+			panic("Something bad happened ")
+		}
+	}
+
+	time.Sleep(time.Second * 20)
+
 }
-
 func main() {
-	client := &http.Client{}
 
-	req, _ := http.NewRequest("GET", "https://www.pathofexile.com/api/public-stash-tabs?id=1224902497-1229569941-1187442478-1328449025-1276721127", nil)
-	req.Header.Set("User-Agent", "Mozilla/5.0")
-	resp, _ := client.Do(req)
-	structed, _ := read_structured_json(resp.Body)
-
-	defer resp.Body.Close()
-
-	f2, _ := os.Create("structed.txt")
-	defer f2.Close()
-	f2.Write(structed)
+	doTheThing()
 
 }

@@ -1,64 +1,188 @@
 package tradeApi
 
-type JsonStruct struct {
-	NextChangeID string `json:"next_change_id"`
-	Stashes      []struct {
-		AccountName string `json:"accountName"`
-		ID          string `json:"id"`
-		Items       []struct {
-			BaseType     string   `json:"baseType"`
-			ExplicitMods []string `json:"explicitMods,omitempty"`
-			FrameType    int      `json:"frameType"`
-			H            int      `json:"h"`
-			Icon         string   `json:"icon"`
-			ID           string   `json:"id"`
-			Identified   bool     `json:"identified"`
-			Ilvl         int      `json:"ilvl"`
-			ImplicitMods []string `json:"implicitMods,omitempty"`
-			InventoryID  string   `json:"inventoryId"`
-			League       string   `json:"league"`
-			Name         string   `json:"name"`
-			Extended     struct {
-				BaseType      string   `json:"baseType"`
-				Category      string   `json:"category"`
-				Prefixes      int      `json:"prefixes"`
-				Subcategories []string `json:"subcategories"`
-				Suffixes      int      `json:"suffixes"`
-			} `json:"extended,omitempty"`
-			Requirements []struct {
-				DisplayMode int             `json:"displayMode"`
-				Name        string          `json:"name"`
-				Values      [][]interface{} `json:"values"`
-			} `json:"requirements,omitempty"`
-			TypeLine    string   `json:"typeLine"`
-			Verified    bool     `json:"verified"`
-			W           int      `json:"w"`
-			X           int      `json:"x"`
-			Y           int      `json:"y"`
-			FlavourText []string `json:"flavourText,omitempty"`
-			Properties  []struct {
-				DisplayMode int             `json:"displayMode"`
-				Name        string          `json:"name"`
-				Type        int             `json:"type"`
-				Values      [][]interface{} `json:"values"`
-			} `json:"properties,omitempty"`
-			SocketedItems []interface{} `json:"socketedItems,omitempty"`
-			Sockets       []struct {
-				Attr    string `json:"attr"`
-				Group   int    `json:"group"`
-				SColour string `json:"sColour"`
-			} `json:"sockets,omitempty"`
-			Corrupted    bool     `json:"corrupted,omitempty"`
-			TalismanTier int      `json:"talismanTier,omitempty"`
-			DescrText    string   `json:"descrText,omitempty"`
-			UtilityMods  []string `json:"utilityMods,omitempty"`
-			CraftedMods  []string `json:"craftedMods,omitempty"`
-			EnchantMods  []string `json:"enchantMods,omitempty"`
-		} `json:"items"`
-		LastCharacterName string `json:"lastCharacterName"`
-		League            string `json:"league"`
-		Public            bool   `json:"public"`
-		Stash             string `json:"stash"`
-		StashType         string `json:"stashType"`
-	} `json:"stashes"`
+import (
+	"io"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"drhyu.com/indexer/models"
+)
+
+const ENDPOINT_URL string = "https://www.pathofexile.com/api/public-stash-tabs?id="
+
+type ApiFetcher struct {
+	PrevChangeID string
+
+	//Internal
+	// Pass pending IDs to the fetcher
+	pendingChangeID chan string
+	dataToProcess   chan []byte
+
+	lastFetchTime  time.Time
+	fetchDelayMSec int64
+	timeoutPolicy  int64
+
+	client http.Client
+
+	ChageIDsSeen map[string]struct{}
+
+	// External
+	NewItems chan models.Item
+}
+
+type NextChangeIDEmptyError struct{}
+
+func (t *NextChangeIDEmptyError) Error() string {
+	return "NextChangeID is empty"
+}
+
+func (fetcher *ApiFetcher) Fetch(changeID string) (data []byte, err error) {
+
+	log.Println("Processing ID: ", changeID)
+	// Ensure we have a valid Change ID to fetch
+	if changeID == "" {
+		log.Println("Next ID is empty !")
+		return nil, &NextChangeIDEmptyError{}
+	}
+
+	fetcher.lastFetchTime = time.Now()
+	// Build request
+	req, _ := http.NewRequest("GET", ENDPOINT_URL+changeID, nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	resp, err := fetcher.client.Do(req)
+
+	// Get the maximum allowed fetching frequency
+	val, ok := resp.Header["X-Rate-Limit-Ip"]
+
+	if !ok {
+		log.Println("Failed to get X-Rate-Limit-Ip from response", resp.Header)
+		return nil, nil
+	}
+
+	temp := strings.Split(val[0], ":")
+
+	n_fetches, _ := strconv.Atoi(temp[0])
+	per_n_seconds, _ := strconv.Atoi(temp[1])
+	timeout_duration_s, _ := strconv.Atoi(temp[2])
+
+	fetcher.fetchDelayMSec = int64(1000 * float32(per_n_seconds) / float32(n_fetches))
+	fetcher.timeoutPolicy = int64(timeout_duration_s)
+
+	if err != nil {
+		log.Println("Failed to fetch ID: ", changeID, "\n-- ", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, _ = io.ReadAll(resp.Body)
+	return data, nil
+}
+
+func (fetcher *ApiFetcher) SleepUntilNextFetch() {
+	sleepDuration := fetcher.fetchDelayMSec - time.Since(fetcher.lastFetchTime).Milliseconds()
+	time.Sleep(time.Millisecond * time.Duration(sleepDuration+200))
+}
+
+func (fetcher *ApiFetcher) EndlessFetch(exitSignal chan bool, failureSignal chan error) {
+
+	for {
+		select {
+		// Signal to exit
+		case <-exitSignal:
+			return
+		case FetchID := <-fetcher.pendingChangeID:
+			data, err := fetcher.Fetch(FetchID)
+			if err != nil {
+				failureSignal <- err
+				return
+			} else {
+				fetcher.dataToProcess <- data
+				fetcher.SleepUntilNextFetch()
+			}
+		}
+	}
+}
+
+func (fetcher *ApiFetcher) ProcessItems(data []byte) (result *models.RespStruct, err error) {
+
+	// err = json.Unmarshal(data, &result)
+	result = &models.RespStruct{}
+	result.UnmarshalJSON(data)
+
+	// Check if this ID was processed before ... skip it then
+	_, seen := fetcher.ChageIDsSeen[result.NextChangeID]
+
+	if !seen {
+		fetcher.ChageIDsSeen[result.NextChangeID] = struct{}{}
+		for _, stash := range result.Stashes {
+			for _, item := range stash.Items {
+				fetcher.NewItems <- item
+				_ = item
+				continue
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// Take the JSON response and put individual fetched items in the newItemsChannel
+func (fetcher *ApiFetcher) EndlessProcessItems(exitSignal chan bool, failureSignal chan error) {
+
+	for {
+		select {
+		// Signal to exit
+		case <-exitSignal:
+			return
+		case data := <-fetcher.dataToProcess:
+			result, err := fetcher.ProcessItems(data)
+			if err != nil {
+				failureSignal <- err
+				return
+			} else {
+				// Load in the next change ID for fetching
+				fetcher.pendingChangeID <- result.NextChangeID
+			}
+		}
+	}
+
+}
+
+func (fetcher *ApiFetcher) Init() {
+	// Initialize the channels
+	fetcher.pendingChangeID = make(chan string, 10)
+	fetcher.dataToProcess = make(chan []byte, 10)
+	fetcher.NewItems = make(chan models.Item, 500)
+
+	fetcher.ChageIDsSeen = make(map[string]struct{})
+}
+
+// Main loop for this thread
+func (fetcher *ApiFetcher) Start(initialFetchID string, exitSignal chan bool, failureSignal chan error) {
+
+	childFailureSignal := make(chan error)
+	fetchKillSignal := make(chan bool)
+	go fetcher.EndlessFetch(fetchKillSignal, childFailureSignal)
+	processKillSignal := make(chan bool)
+	go fetcher.EndlessProcessItems(processKillSignal, childFailureSignal)
+
+	// Give the initial fetch ID so that the fetching process may begin
+	fetcher.pendingChangeID <- initialFetchID
+
+	// wait to be killed or error happened
+	select {
+	case <-exitSignal:
+		fetchKillSignal <- true
+		processKillSignal <- true
+	case childErr := <-childFailureSignal:
+		// Kill all children
+		fetchKillSignal <- true
+		processKillSignal <- true
+		// propagate error down
+		failureSignal <- childErr
+	}
+
 }
