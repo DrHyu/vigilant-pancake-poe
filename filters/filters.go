@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"reflect"
 
 	"drhyu.com/indexer/models"
 )
@@ -36,8 +35,10 @@ type SearchGroup struct {
 }
 
 type Filter struct {
-	Field string
 	Value string
+
+	PropertyID  int
+	SubProperty string
 
 	ComparisonMethod int
 	InverseMatch     bool
@@ -53,20 +54,12 @@ type TrackedItem struct {
 	track []bool
 }
 
-func getAttr(obj interface{}, fieldName string) reflect.Value {
-	pointToStruct := reflect.ValueOf(obj) // addressable
-	curStruct := pointToStruct.Elem()
-	if curStruct.Kind() != reflect.Struct {
-		panic("not struct")
-	}
-	curField := curStruct.FieldByName(fieldName) // type: reflect.Value
-	if !curField.IsValid() {
-		panic("not found:" + fieldName)
-	}
-	return curField
-}
-
 func (filter *Filter) ApplyTo(item *models.Item) (bool, error) {
+
+	value := filter.GetItemProperty(item)
+
+	fmt.Print(value)
+
 	return true, nil
 }
 
@@ -79,8 +72,6 @@ func (searchGroup *SearchGroup) ApplyTo(
 	newItem *TrackedItem,
 	outForwardedItems chan<- *TrackedItem,
 	outMatchedItems chan<- *models.Item) error {
-
-	log.Printf("SG %d got item %v %v", searchGroup.searchGroupIndex, newItem.track, newItem.id)
 
 	var pass bool
 
@@ -126,25 +117,18 @@ func (searchGroup *SearchGroup) ApplyTo(
 
 		if allPassed {
 			// Item match !
-			// log.Printf("SG %d -> outMatchedItems TRY item %v %v - %v", searchGroup.searchGroupIndex, newItem.track, newItem.id, outMatchedItems)
 			select {
 			case outMatchedItems <- newItem.item:
-				log.Printf("SG %d: put in outMatchedItems", searchGroup.searchGroupIndex)
 			default:
 				log.Printf("SG %d: outMatchedItems is full", searchGroup.searchGroupIndex)
 			}
-			// log.Printf("SG %d -> outMatchedItems DONE item %v %v - %v", searchGroup.searchGroupIndex, newItem.track, newItem.id, outMatchedItems)
 		} else {
+			// Still needs to go though other SearchGroups
 			select {
 			case outForwardedItems <- newItem:
-				log.Printf("SG %d: put in outForwardedItems", searchGroup.searchGroupIndex)
 			default:
 				log.Printf("SG %d: outForwardedItems is full", searchGroup.searchGroupIndex)
 			}
-			// Still needs to go though other SearchGroups
-			// log.Printf("SG %d -> outForwardedItems TRY item %v %v - %v", searchGroup.searchGroupIndex, newItem.track, newItem.id, outForwardedItems)
-
-			// log.Printf("SG %d -> outForwardedItems DONE item %v %v - %v", searchGroup.searchGroupIndex, newItem.track, newItem.id, outForwardedItems)
 		}
 	}
 	// else {
@@ -175,7 +159,6 @@ func (searchGroup *SearchGroup) StartSearchGroup(
 		case <-exitSignal:
 			return
 		case trackedItem = <-inForwardedItems:
-			// log.Printf("Fetch from froward %d id: %d ", searchGroup.searchGroupIndex, trackedItem.id)
 			searchGroup.ApplyTo(trackedItem, outForwardedItems, outMatchedItems)
 			continue
 		default:
@@ -186,13 +169,11 @@ func (searchGroup *SearchGroup) StartSearchGroup(
 		case <-exitSignal:
 			return
 		case trackedItem = <-inForwardedItems:
-			// log.Printf("Fetch from froward %d id: %d ", searchGroup.searchGroupIndex, trackedItem.id)
 			searchGroup.ApplyTo(trackedItem, outForwardedItems, outMatchedItems)
 		case item := <-inNewItems:
 			// Item passed in from trade API is of type models.Item not TrackedItem
 			//(which includes info on which SearchGroup has already processed this item)
 			trackedItem = &TrackedItem{track: make([]bool, searchGroup.nSearchGroups), item: item, id: rand.Int31()}
-			// log.Printf("Fetch from new %d id: %d ", searchGroup.searchGroupIndex, trackedItem.id)
 			searchGroup.ApplyTo(trackedItem, outForwardedItems, outMatchedItems)
 		}
 	}
@@ -214,21 +195,36 @@ func (search *Search) StartSearch(
 		channels[i] = make(chan *TrackedItem, 50)
 	}
 
-	for i := range search.SearchGroups {
-		// Assign an index to each SearchGroup
-		search.SearchGroups[i].searchGroupIndex = i
-		search.SearchGroups[i].nSearchGroups = len(search.SearchGroups)
+	if len(search.SearchGroups) > 1 {
 
-		// Launch each SearchGroup in parallel
-		// eg:
-		// SG 1 -> SG 2
-		// SG 2 -> SG 3
-		// ...
-		// SG N -> SG 0
-		go search.SearchGroups[i].StartSearchGroup(
+		for i := range search.SearchGroups {
+			// Assign an index to each SearchGroup
+			search.SearchGroups[i].searchGroupIndex = i
+			search.SearchGroups[i].nSearchGroups = len(search.SearchGroups)
+
+			// Launch each SearchGroup in parallel
+			// eg:
+			// SG 1 -> SG 2
+			// SG 2 -> SG 3
+			// ...
+			// SG N -> SG 0
+			// This approach WOULD deadlock
+			// For a given number of inputs (N_INPUTS) and number of matched items (N_MATCHES)
+			//  N_MATCHES approaches N_INPUTS/N_SEARCH_GROUPS
+			// Escape are in place to prevent an actual deadlock but matched items will be dropped
+			go search.SearchGroups[i].StartSearchGroup(
+				itemsIn,
+				channels[i],
+				channels[(i+1)%(len(channels)-1)],
+				itemsOut,
+				childExitSignal,
+				childFailureSignal)
+		}
+	} else if len(search.SearchGroups) == 1 {
+		go search.SearchGroups[0].StartSearchGroup(
 			itemsIn,
-			channels[i],
-			channels[(i+1)%(len(channels)-1)],
+			nil,
+			nil,
 			itemsOut,
 			childExitSignal,
 			childFailureSignal)
@@ -254,7 +250,5 @@ func (search *Search) StartSearch(
 }
 
 func Test() {
-	f := Filter{Field: "test", Value: "23"}
 
-	fmt.Print(getAttr(&f, "Field"))
 }

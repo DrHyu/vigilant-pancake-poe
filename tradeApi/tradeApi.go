@@ -122,13 +122,13 @@ func (fetcher *ApiFetcher) ProcessItems(data *[]byte) (result *models.RespStruct
 	if !seen {
 		fetcher.ChageIDsSeen[result.NextChangeID] = struct{}{}
 		for _, stash := range result.Stashes {
-			if stash.League == "Standard" {
+			if stash.League == "Ultimatum" {
 				for _, item := range stash.Items {
 					select {
 					case fetcher.NewItems <- &item:
 						continue
-					default:
-						log.Printf("Channel full. Discarding %v \n", item.BaseType)
+						// default:
+						// 	log.Printf("Channel full. Discarding %v \n", item.BaseType)
 					}
 				}
 			}

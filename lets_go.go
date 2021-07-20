@@ -38,51 +38,37 @@ func doTheThing() {
 				SearchMode: filters.SEARCH_MODE_AND,
 				Filters: []filters.Filter{
 					{
-						Field:            "test",
-						Value:            "test",
+						PropertyID:       filters.P_BASETYPE,
+						Value:            "Lapis Amulet",
 						ComparisonMethod: filters.COMP_STR_EQ,
 					},
-					{
-						Field:            "test2",
-						Value:            "test3",
-						ComparisonMethod: filters.COMP_STR_EQ,
-					},
+					// {
+					// 	Field:            "test2",
+					// 	Value:            "test3",
+					// 	ComparisonMethod: filters.COMP_STR_EQ,
+					// },
 				},
 			},
-			{
-				SearchMode: filters.SEARCH_MODE_AND,
-				Filters: []filters.Filter{
-					{
-						Field:            "test",
-						Value:            "test",
-						ComparisonMethod: filters.COMP_STR_EQ,
-					},
-					{
-						Field:            "test2",
-						Value:            "test3",
-						ComparisonMethod: filters.COMP_STR_EQ,
-					},
-				},
-			},
+			// {
+			// 	SearchMode: filters.SEARCH_MODE_AND,
+			// 	Filters: []filters.Filter{
+			// 		{
+			// 			Field:            "test",
+			// 			Value:            "test",
+			// 			ComparisonMethod: filters.COMP_STR_EQ,
+			// 		},
+			// 		{
+			// 			Field:            "test2",
+			// 			Value:            "test3",
+			// 			ComparisonMethod: filters.COMP_STR_EQ,
+			// 		},
+			// 	},
+			// },
 		},
 	}
 	itemsOut := make(chan *models.Item, 100)
 
 	go mSearch.StartSearch(mFetcher.NewItems, itemsOut, exit, failure)
-
-	// _ = mSearch
-	// for {
-	// 	select {
-	// 	case item := <-mFetcher.NewItems:
-	// 		// case <-mFetcher.NewItems:
-	// 		fmt.Print(item.BaseType)
-	// 		continue
-
-	// 	case childErr := <-failure:
-	// 		_ = childErr
-	// 		panic("Something bad happened ")
-	// 	}
-	// }
 
 	for {
 		item := <-itemsOut
