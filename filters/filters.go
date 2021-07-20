@@ -1,10 +1,12 @@
 package filters
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"regexp"
 	"strconv"
+	"time"
 
 	"drhyu.com/indexer/models"
 )
@@ -46,6 +48,7 @@ type Filter struct {
 	SubProperty string
 
 	// How to compare the match of the regex
+	Regex                      *regexp.Regexp
 	RegexMatchComparisonMethod int
 
 	ComparisonMethod int
@@ -102,25 +105,17 @@ func (filter *Filter) ApplyTo(item *models.Item) (bool, error) {
 	case COMP_INT_BETWEEN:
 		result = value.(int) >= filter.Value1.(int) && value.(int) <= filter.Value2.(int)
 	case COMP_REGEX_MATCH:
-		match, err := regexp.Match(filter.Value1.(string), []byte(value.(string)))
-		if err != nil {
-			return false, err
-		}
-		result = match
+		result = filter.Regex.Match([]byte(value.(string)))
 	case COMP_REGEX_FIND_COMPARE:
-		r, err := regexp.Compile(filter.Value1.(string))
-		if err != nil {
-			return false, err
-		}
 		// Take underlying string in interface{} and cast it to byte[] for regex
-		match := r.Find([]byte(value.(string)))
+		match := filter.Regex.FindSubmatch([]byte(value.(string)))
 		// Regex didn't match
 		if match == nil {
 			result = false
 			break
 		}
 
-		foundInt, err := strconv.Atoi(string(match))
+		foundInt, err := strconv.Atoi(string(match[1]))
 		if err != nil {
 			return false, err
 		}
@@ -129,17 +124,17 @@ func (filter *Filter) ApplyTo(item *models.Item) (bool, error) {
 		case COMP_STR_EQ:
 			return false, &FilterError{}
 		case COMP_INT_EQ:
-			result = foundInt == filter.Value2.(int)
+			result = foundInt == filter.Value1.(int)
 		case COMP_INT_GT:
-			result = foundInt > filter.Value2.(int)
+			result = foundInt > filter.Value1.(int)
 		case COMP_INT_GTE:
-			result = foundInt >= filter.Value2.(int)
+			result = foundInt >= filter.Value1.(int)
 		case COMP_INT_LT:
-			result = foundInt < filter.Value2.(int)
+			result = foundInt < filter.Value1.(int)
 		case COMP_INT_LTE:
-			result = foundInt <= filter.Value2.(int)
+			result = foundInt <= filter.Value1.(int)
 		case COMP_INT_BETWEEN:
-			result = foundInt >= filter.Value2.(int) && value.(int) <= filter.Value3.(int)
+			result = foundInt >= filter.Value1.(int) && foundInt <= filter.Value2.(int)
 		default:
 			return false, nil
 		}
@@ -212,14 +207,16 @@ func (searchGroup *SearchGroup) ApplyTo(
 			select {
 			case outMatchedItems <- newItem.item:
 			default:
-				log.Printf("[Error] SG %d: outMatchedItems is full", searchGroup.searchGroupIndex)
+				log.Printf("[Error] SG %d: outMatchedItems (%d/%d) is full", searchGroup.searchGroupIndex, len(outMatchedItems), cap(outMatchedItems))
 			}
 		} else {
 			// Still needs to go though other SearchGroups
 			select {
 			case outForwardedItems <- newItem:
+				fmt.Printf("[Info] SG %d: outForwardedItems (%d/%d)\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
 			default:
-				log.Printf("[Error] SG %d: outForwardedItems is full", searchGroup.searchGroupIndex)
+				log.Printf("[Error] SG %d: outForwardedItems (%d/%d) is full\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
+				fmt.Printf("[Error] SG %d: outForwardedItems (%d/%d) is full\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
 			}
 		}
 	}
@@ -313,37 +310,33 @@ func (search *Search) StartSearch(
 			childExitSignal,
 			childFailureSignal)
 	}
-	// } else if len(search.SearchGroups) == 1 {
-	// 	search.SearchGroups[0].searchGroupIndex = 0
-	// 	search.SearchGroups[0].nSearchGroups = 1
-	// 	go search.SearchGroups[0].StartSearchGroup(
-	// 		itemsIn,
-	// 		nil,
-	// 		nil,
-	// 		itemsOut,
-	// 		childExitSignal,
-	// 		childFailureSignal)
-	// }
+
+	ticker := time.NewTicker(1000 * time.Millisecond)
 
 	// Wait for kill signal or error
-	select {
-	// Signal to exit
-	case <-exitSignal:
-		for range search.SearchGroups {
-			childExitSignal <- true
+	for {
+		select {
+		// Signal to exit
+		case <-exitSignal:
+			for range search.SearchGroups {
+				childExitSignal <- true
+			}
+			return
+			// TODO
+		case err := <-childFailureSignal:
+			failureSignal <- err
+			for range search.SearchGroups {
+				childExitSignal <- true
+			}
+			return
+		case <-ticker.C:
+			out := ""
+			for i, c := range channels {
+
+				out = out + fmt.Sprintf("CH%d %d/%d ", i, len(c), cap(c))
+			}
+			out += "\n"
+			fmt.Print(out)
 		}
-		return
-		// TODO
-	case err := <-childFailureSignal:
-		failureSignal <- err
-		for range search.SearchGroups {
-			childExitSignal <- true
-		}
-		return
 	}
-
-}
-
-func Test() {
-
 }

@@ -19,6 +19,7 @@ const (
 	P_CORRUPTED    = iota // Corrupted    bool
 	P_TALISMANTIER = iota // TalismanTier int
 	P_DESCRTEXT    = iota // DescrText    string
+	P_NOTE         = iota // Note         string
 
 	P_EXPLICITMODS = iota // ExplicitMods []string
 	P_IMPLICITMODS = iota // ImplicitMods []string
@@ -40,6 +41,22 @@ const (
 	P_SUBCATEGORIES = iota // Subcategories []string
 	P_SUFFIXES      = iota // Suffixes      int
 	// }
+
+	// Virtual properties (made up)
+	P_RARITY = iota
+)
+
+const (
+	P_NORMAL         = 0
+	P_MAGIC          = 1
+	P_RARE           = 2
+	P_UNIQUE         = 3
+	P_GEM            = 4
+	P_CURRENCY       = 5
+	P_DIVINATIONCARD = 6
+	P_QUESTITEM      = 7
+	P_PROPHECY       = 8
+	P_RELIC          = 9
 )
 
 func GetItemProperty(propertyID int, SubProperty string, item *Item) interface{} {
@@ -91,6 +108,22 @@ func GetItemProperty(propertyID int, SubProperty string, item *Item) interface{}
 		return item.Extended.Prefixes
 	case P_SUFFIXES:
 		return item.Extended.Suffixes
+	case P_NOTE:
+		return item.Note
+
+	case P_RARITY:
+		switch item.FrameType {
+		case P_NORMAL:
+			return "NORMAL"
+		case P_MAGIC:
+			return "MAGIC"
+		case P_RARE:
+			return "RARE"
+		case P_UNIQUE:
+			return "UNIQUE"
+		default:
+			return ""
+		}
 
 	// Arrays
 	case P_EXPLICITMODS:
@@ -172,6 +205,11 @@ func GetItemPropertyName(propertyID int, subProperty string, item *Item) string 
 		return "Extended.Prefixes"
 	case P_SUFFIXES:
 		return "Extended.Suffixes"
+	case P_NOTE:
+		return "Note"
+
+	case P_RARITY:
+		return "Rarity"
 
 	// Arrays
 	case P_EXPLICITMODS:

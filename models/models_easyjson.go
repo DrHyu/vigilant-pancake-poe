@@ -601,6 +601,8 @@ func easyjsonD2b7633eDecodeDrhyuComIndexerModels2(in *jlexer.Lexer, out *Item) {
 				}
 				in.Delim(']')
 			}
+		case "note":
+			out.Note = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -855,6 +857,11 @@ func easyjsonD2b7633eEncodeDrhyuComIndexerModels2(out *jwriter.Writer, in Item) 
 			}
 			out.RawByte(']')
 		}
+	}
+	if in.Note != "" {
+		const prefix string = ",\"note\":"
+		out.RawString(prefix)
+		out.String(string(in.Note))
 	}
 	out.RawByte('}')
 }

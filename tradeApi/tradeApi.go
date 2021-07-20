@@ -128,8 +128,8 @@ func (fetcher *ApiFetcher) ProcessItems(data *[]byte) (result *models.RespStruct
 					select {
 					case fetcher.NewItems <- item:
 						continue
-					default:
-						log.Printf("[ERROR] Channel full. Discarding %v \n", item)
+						// default:
+						// 	log.Printf("[ERROR] Channel full. Discarding %v \n", item)
 					}
 				}
 			}

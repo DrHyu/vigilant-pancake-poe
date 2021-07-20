@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"time"
 
 	"drhyu.com/indexer/filters"
@@ -68,15 +69,19 @@ func doTheThing() {
 			{
 				SearchMode: filters.SEARCH_MODE_AND,
 				Filters: []filters.Filter{
-					// {
-					// 	PropertyID:       filters.P_BASETYPE,
-					// 	Value:            "Lapis Amulet",
-					// 	ComparisonMethod: filters.COMP_STR_EQ,
-					// },
 					{
-						PropertyID:       models.P_FRAMETYPE,
-						Value1:           3,
-						ComparisonMethod: filters.COMP_INT_EQ,
+						PropertyID:       models.P_RARITY,
+						Value1:           "UNIQUE",
+						ComparisonMethod: filters.COMP_STR_EQ,
+					},
+					{
+						PropertyID: models.P_NOTE,
+						Regex:      regexp.MustCompile(`~(?:price|b/o) (\d+) chaos`),
+
+						Value1:                     10,
+						Value2:                     60,
+						ComparisonMethod:           filters.COMP_REGEX_FIND_COMPARE,
+						RegexMatchComparisonMethod: filters.COMP_INT_BETWEEN,
 					},
 				},
 			},
@@ -89,7 +94,7 @@ func doTheThing() {
 	for {
 		item := <-itemsOut
 
-		fmt.Print(item.Describe(models.P_NAME, models.P_DESCRTEXT))
+		fmt.Print(item.Describe(models.P_NAME, models.P_NOTE))
 		fmt.Println("Found Match: ")
 		for i := range mSearch.SearchGroups {
 			for _, f := range mSearch.SearchGroups[i].Filters {
@@ -109,5 +114,13 @@ func doTheThing() {
 func main() {
 
 	doTheThing()
-
+	// testStr := "~price 60 chaos"
+	// r, err := regexp.Compile(`~(?:price|b/o) (\d+) chaos`)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// // Take underlying string in interface{} and cast it to byte[] for regex
+	// // match := r.Find([]byte(value.(string)))
+	// match := r.FindSubmatch([]byte(testStr))
+	// fmt.Printf("%q\n", match)
 }

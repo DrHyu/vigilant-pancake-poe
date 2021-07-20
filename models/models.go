@@ -68,6 +68,7 @@ type Item struct {
 	UtilityMods  []string `json:"utilityMods,omitempty"`
 	CraftedMods  []string `json:"craftedMods,omitempty"`
 	EnchantMods  []string `json:"enchantMods,omitempty"`
+	Note         string   `json:"note,omitempty"`
 }
 
 func (i *Item) Describe(fields ...int) string {
