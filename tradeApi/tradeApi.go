@@ -11,6 +11,7 @@ import (
 	"drhyu.com/indexer/models"
 )
 
+const LEAGUE string = "Standard"
 const ENDPOINT_URL string = "https://www.pathofexile.com/api/public-stash-tabs?id="
 
 type ApiFetcher struct {
@@ -30,7 +31,7 @@ type ApiFetcher struct {
 	ChageIDsSeen map[string]struct{}
 
 	// External
-	NewItems chan *models.Item
+	NewItems chan models.Item
 }
 
 type NextChangeIDEmptyError struct{}
@@ -41,7 +42,7 @@ func (t *NextChangeIDEmptyError) Error() string {
 
 func (fetcher *ApiFetcher) Fetch(changeID string) (*[]byte, error) {
 
-	log.Println("Processing ID: ", changeID)
+	log.Println("[INFO] Processing ID: ", changeID)
 	// Ensure we have a valid Change ID to fetch
 	if changeID == "" {
 		log.Println("Next ID is empty !")
@@ -58,7 +59,7 @@ func (fetcher *ApiFetcher) Fetch(changeID string) (*[]byte, error) {
 	val, ok := resp.Header["X-Rate-Limit-Ip"]
 
 	if !ok {
-		log.Println("Failed to get X-Rate-Limit-Ip from response", resp.Header)
+		log.Println("[ERROR] Failed to get X-Rate-Limit-Ip from response", resp.Header)
 		return nil, nil
 	}
 
@@ -72,7 +73,7 @@ func (fetcher *ApiFetcher) Fetch(changeID string) (*[]byte, error) {
 	fetcher.timeoutPolicy = int64(timeout_duration_s)
 
 	if err != nil {
-		log.Println("Failed to fetch ID: ", changeID, "\n-- ", err)
+		log.Println("[ERROR] Failed to fetch ID: ", changeID, "\n-- ", err)
 		return nil, err
 	}
 
@@ -122,13 +123,13 @@ func (fetcher *ApiFetcher) ProcessItems(data *[]byte) (result *models.RespStruct
 	if !seen {
 		fetcher.ChageIDsSeen[result.NextChangeID] = struct{}{}
 		for _, stash := range result.Stashes {
-			if stash.League == "Ultimatum" {
+			if stash.League == LEAGUE {
 				for _, item := range stash.Items {
 					select {
-					case fetcher.NewItems <- &item:
+					case fetcher.NewItems <- item:
 						continue
-						// default:
-						// 	log.Printf("Channel full. Discarding %v \n", item.BaseType)
+					default:
+						log.Printf("[ERROR] Channel full. Discarding %v \n", item)
 					}
 				}
 			}
@@ -155,14 +156,13 @@ func (fetcher *ApiFetcher) EndlessProcessItems(exitSignal chan bool, failureSign
 			}
 		}
 	}
-
 }
 
 func (fetcher *ApiFetcher) Init() {
 	// Initialize the channels
 	fetcher.pendingChangeID = make(chan string, 10)
 	fetcher.dataToProcess = make(chan *[]byte, 10)
-	fetcher.NewItems = make(chan *models.Item, 500)
+	fetcher.NewItems = make(chan models.Item, 500)
 
 	fetcher.ChageIDsSeen = make(map[string]struct{})
 }

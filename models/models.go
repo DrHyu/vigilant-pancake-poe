@@ -1,5 +1,7 @@
 package models
 
+import "fmt"
+
 //easyjson
 type RespStruct struct {
 	NextChangeID string  `json:"next_change_id"`
@@ -66,4 +68,18 @@ type Item struct {
 	UtilityMods  []string `json:"utilityMods,omitempty"`
 	CraftedMods  []string `json:"craftedMods,omitempty"`
 	EnchantMods  []string `json:"enchantMods,omitempty"`
+}
+
+func (i *Item) Describe(fields ...int) string {
+
+	out := "Item:\n"
+
+	for _, field := range fields {
+
+		prop := GetItemProperty(field, "", i)
+		label := GetItemPropertyName(field, "", i)
+
+		out += fmt.Sprintf("\t%v: %v\n", label, prop)
+	}
+	return out
 }

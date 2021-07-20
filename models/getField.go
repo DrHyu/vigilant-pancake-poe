@@ -1,11 +1,4 @@
-package filters
-
-import "drhyu.com/indexer/models"
-
-type ItemPropery struct {
-	properyID int
-	// poperyType reflection.type
-}
+package models
 
 const (
 	P_BASETYPE     = iota // BaseType     string
@@ -49,9 +42,9 @@ const (
 	// }
 )
 
-func (filter *Filter) GetItemProperty(item *models.Item) interface{} {
+func GetItemProperty(propertyID int, SubProperty string, item *Item) interface{} {
 
-	switch filter.PropertyID {
+	switch propertyID {
 
 	// Simple types
 	case P_BASETYPE:
@@ -118,7 +111,7 @@ func (filter *Filter) GetItemProperty(item *models.Item) interface{} {
 	case P_PROPERTIES:
 		// check if subproperty exists
 		for i := range item.Properties {
-			if item.Properties[i].Name == filter.SubProperty {
+			if item.Properties[i].Name == SubProperty {
 				if len(item.Properties[i].Values) > 0 && len(item.Properties[i].Values[0]) > 0 {
 					return item.Properties[i].Values[0][0]
 				} else {
@@ -130,4 +123,76 @@ func (filter *Filter) GetItemProperty(item *models.Item) interface{} {
 	}
 
 	return nil
+}
+
+func GetItemPropertyName(propertyID int, subProperty string, item *Item) string {
+
+	switch propertyID {
+	case P_BASETYPE:
+		return "BaseType"
+	case P_FRAMETYPE:
+		return "FrameType"
+	case P_H:
+		return "H"
+	case P_ICON:
+		return "Icon"
+	case P_ID:
+		return "ID"
+	case P_IDENTIFIED:
+		return "Identified"
+	case P_ILVL:
+		return "Ilvl"
+	case P_INVENTORYID:
+		return "InventoryID"
+	case P_LEAGUE:
+		return "League"
+	case P_NAME:
+		return "Name"
+	case P_TYPELINE:
+		return "TypeLine"
+	case P_VERIFIED:
+		return "Verified"
+	case P_W:
+		return "W"
+	case P_X:
+		return "X"
+	case P_Y:
+		return "Y"
+	case P_CORRUPTED:
+		return "Corrupted"
+	case P_TALISMANTIER:
+		return "TalismanTier"
+	case P_DESCRTEXT:
+		return "DescrText"
+	case P_SUBBASETYPE:
+		return "Extended.BaseType"
+	case P_CATEGORY:
+		return "Extended.Category"
+	case P_PREFIXES:
+		return "Extended.Prefixes"
+	case P_SUFFIXES:
+		return "Extended.Suffixes"
+
+	// Arrays
+	case P_EXPLICITMODS:
+		return "ExplicitMods"
+	case P_IMPLICITMODS:
+		return "ImplicitMods"
+	case P_FLAVOURTEXT:
+		return "FlavourText"
+	case P_UTILITYMODS:
+		return "UtilityMods"
+	case P_CRAFTEDMODS:
+		return "CraftedMods"
+	case P_ENCHANTMODS:
+		return "CraftedMods"
+	case P_SUBCATEGORIES:
+		return "Extended.Subcategories"
+
+	case P_PROPERTIES:
+		// check if subproperty exists
+		return "Properties.[*]." + subProperty
+	default:
+		return ""
+	}
 }
