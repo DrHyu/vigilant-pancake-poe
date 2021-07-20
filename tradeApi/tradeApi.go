@@ -19,7 +19,7 @@ type ApiFetcher struct {
 	//Internal
 	// Pass pending IDs to the fetcher
 	pendingChangeID chan string
-	dataToProcess   chan []byte
+	dataToProcess   chan *[]byte
 
 	lastFetchTime  time.Time
 	fetchDelayMSec int64
@@ -30,7 +30,7 @@ type ApiFetcher struct {
 	ChageIDsSeen map[string]struct{}
 
 	// External
-	NewItems chan models.Item
+	NewItems chan *models.Item
 }
 
 type NextChangeIDEmptyError struct{}
@@ -39,7 +39,7 @@ func (t *NextChangeIDEmptyError) Error() string {
 	return "NextChangeID is empty"
 }
 
-func (fetcher *ApiFetcher) Fetch(changeID string) (data []byte, err error) {
+func (fetcher *ApiFetcher) Fetch(changeID string) (*[]byte, error) {
 
 	log.Println("Processing ID: ", changeID)
 	// Ensure we have a valid Change ID to fetch
@@ -75,10 +75,10 @@ func (fetcher *ApiFetcher) Fetch(changeID string) (data []byte, err error) {
 		log.Println("Failed to fetch ID: ", changeID, "\n-- ", err)
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	data, _ = io.ReadAll(resp.Body)
-	return data, nil
+	defer resp.Body.Close()
+	d, _ := io.ReadAll(resp.Body)
+	return &d, nil
 }
 
 func (fetcher *ApiFetcher) SleepUntilNextFetch() {
@@ -106,11 +106,15 @@ func (fetcher *ApiFetcher) EndlessFetch(exitSignal chan bool, failureSignal chan
 	}
 }
 
-func (fetcher *ApiFetcher) ProcessItems(data []byte) (result *models.RespStruct, err error) {
+func (fetcher *ApiFetcher) ProcessItems(data *[]byte) (result *models.RespStruct, err error) {
 
 	// err = json.Unmarshal(data, &result)
 	result = &models.RespStruct{}
-	result.UnmarshalJSON(data)
+	result.UnmarshalJSON(*data)
+
+	// Load in the next change ID for fetching
+	// fetcher.pendingChangeID <- result.NextChangeID
+	fetcher.pendingChangeID <- result.NextChangeID
 
 	// Check if this ID was processed before ... skip it then
 	_, seen := fetcher.ChageIDsSeen[result.NextChangeID]
@@ -118,10 +122,15 @@ func (fetcher *ApiFetcher) ProcessItems(data []byte) (result *models.RespStruct,
 	if !seen {
 		fetcher.ChageIDsSeen[result.NextChangeID] = struct{}{}
 		for _, stash := range result.Stashes {
-			for _, item := range stash.Items {
-				fetcher.NewItems <- item
-				_ = item
-				continue
+			if stash.League == "Standard" {
+				for _, item := range stash.Items {
+					select {
+					case fetcher.NewItems <- &item:
+						continue
+					default:
+						log.Printf("Channel full. Discarding %v \n", item.BaseType)
+					}
+				}
 			}
 		}
 	}
@@ -131,20 +140,18 @@ func (fetcher *ApiFetcher) ProcessItems(data []byte) (result *models.RespStruct,
 
 // Take the JSON response and put individual fetched items in the newItemsChannel
 func (fetcher *ApiFetcher) EndlessProcessItems(exitSignal chan bool, failureSignal chan error) {
-
 	for {
 		select {
 		// Signal to exit
 		case <-exitSignal:
 			return
 		case data := <-fetcher.dataToProcess:
-			result, err := fetcher.ProcessItems(data)
+			_, err := fetcher.ProcessItems(data)
 			if err != nil {
 				failureSignal <- err
 				return
 			} else {
-				// Load in the next change ID for fetching
-				fetcher.pendingChangeID <- result.NextChangeID
+
 			}
 		}
 	}
@@ -154,8 +161,8 @@ func (fetcher *ApiFetcher) EndlessProcessItems(exitSignal chan bool, failureSign
 func (fetcher *ApiFetcher) Init() {
 	// Initialize the channels
 	fetcher.pendingChangeID = make(chan string, 10)
-	fetcher.dataToProcess = make(chan []byte, 10)
-	fetcher.NewItems = make(chan models.Item, 500)
+	fetcher.dataToProcess = make(chan *[]byte, 10)
+	fetcher.NewItems = make(chan *models.Item, 500)
 
 	fetcher.ChageIDsSeen = make(map[string]struct{})
 }
