@@ -157,8 +157,8 @@ func (filter *Filter) ApplyTo(item *models.Item) (bool, error) {
 // If the item doesn't pass the filters it is discarded an not forwarded
 func (searchGroup *SearchGroup) ApplyTo(
 	newItem *TrackedItem,
-	outForwardedItems chan<- *TrackedItem,
-	outMatchedItems chan<- *models.Item) error {
+	outForwardedItems chan *TrackedItem,
+	outMatchedItems chan *models.Item) error {
 
 	var pass bool
 
@@ -213,10 +213,10 @@ func (searchGroup *SearchGroup) ApplyTo(
 			// Still needs to go though other SearchGroups
 			select {
 			case outForwardedItems <- newItem:
-				fmt.Printf("[Info] SG %d: outForwardedItems (%d/%d)\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
-			default:
-				log.Printf("[Error] SG %d: outForwardedItems (%d/%d) is full\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
-				fmt.Printf("[Error] SG %d: outForwardedItems (%d/%d) is full\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
+				// fmt.Printf("[Info] SG %d: outForwardedItems (%d/%d)\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
+				// default:
+				// 	log.Printf("[Error] SG %d: outForwardedItems (%d/%d) is full\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
+				// 	fmt.Printf("[Error] SG %d: outForwardedItems (%d/%d) is full\n", searchGroup.searchGroupIndex, len(outForwardedItems), cap(outForwardedItems))
 			}
 		}
 	}
@@ -233,10 +233,10 @@ func (searchGroup *SearchGroup) ApplyTo(
 // inNewItems are new items fresh from the tradeAPI
 // Processing "old" items takes priority before fetching new ones
 func (searchGroup *SearchGroup) StartSearchGroup(
-	inNewItems <-chan models.Item, // New items passed from the fetchAPI
-	inForwardedItems <-chan *TrackedItem, // Items passed from another SearchGroup
-	outForwardedItems chan<- *TrackedItem,
-	outMatchedItems chan<- *models.Item,
+	inNewItems chan models.Item, // New items passed from the fetchAPI
+	inForwardedItems chan *TrackedItem, // Items passed from another SearchGroup
+	outForwardedItems chan *TrackedItem,
+	outMatchedItems chan *models.Item,
 	exitSignal chan bool,
 	failureSignal chan error) {
 
@@ -268,9 +268,30 @@ func (searchGroup *SearchGroup) StartSearchGroup(
 	}
 }
 
+func reportChanStatus(queues []chan *TrackedItem) {
+	out := ""
+	for i, c := range queues {
+
+		out = out + fmt.Sprintf("CH%d %d/%d ", i, len(c), cap(c))
+	}
+	out += "\n"
+	fmt.Print(out)
+}
+
+func debugChanLvlReporter(queues []chan *TrackedItem, inq chan<- models.Item, ouq chan *models.Item) {
+
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	for {
+		<-ticker.C
+		reportChanStatus(queues)
+		fmt.Printf("INQ %d/%d\n", len(inq), cap(inq))
+		fmt.Printf("OUQ %d/%d\n", len(ouq), cap(ouq))
+	}
+}
+
 func (search *Search) StartSearch(
-	itemsIn <-chan models.Item,
-	itemsOut chan<- *models.Item,
+	itemsIn chan models.Item,
+	itemsOut chan *models.Item,
 	exitSignal chan bool,
 	failureSignal chan error) {
 
@@ -281,7 +302,7 @@ func (search *Search) StartSearch(
 	channels := make([]chan *TrackedItem, len(search.SearchGroups))
 
 	for i := range channels {
-		channels[i] = make(chan *TrackedItem, 50)
+		channels[i] = make(chan *TrackedItem, 200)
 	}
 
 	// if len(search.SearchGroups) > 1 {
@@ -311,7 +332,7 @@ func (search *Search) StartSearch(
 			childFailureSignal)
 	}
 
-	ticker := time.NewTicker(1000 * time.Millisecond)
+	go debugChanLvlReporter(channels, itemsIn, itemsOut)
 
 	// Wait for kill signal or error
 	for {
@@ -329,14 +350,6 @@ func (search *Search) StartSearch(
 				childExitSignal <- true
 			}
 			return
-		case <-ticker.C:
-			out := ""
-			for i, c := range channels {
-
-				out = out + fmt.Sprintf("CH%d %d/%d ", i, len(c), cap(c))
-			}
-			out += "\n"
-			fmt.Print(out)
 		}
 	}
 }
