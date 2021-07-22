@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
-	"time"
 
 	"drhyu.com/indexer/filters"
 	"drhyu.com/indexer/models"
 	"drhyu.com/indexer/tradeApi"
+	"drhyu.com/indexer/wsocket"
 )
 
 func setupLogs() {
@@ -32,103 +31,150 @@ func doTheThing() {
 
 	mFetcher := &tradeApi.ApiFetcher{}
 	mFetcher.Init()
-	// go mFetcher.Start("1224902497-1229569941-1187442478-1328449025-1276721127", exit, failure)
 	go mFetcher.Start("1227018323-1231611186-1189493786-1330691408-1278889110", exit, failure)
 
-	mSearch := &filters.Search{
-		SearchGroups: []filters.SearchGroup{
-			// {
-			// 	SearchMode: filters.SEARCH_MODE_AND,
-			// 	Filters: []filters.Filter{
-			// 		// {
-			// 		// 	PropertyID:       models.P_BASETYPE,
-			// 		// 	Value1:           "Lapis Amulet",
-			// 		// 	ComparisonMethod: filters.COMP_STR_EQ,
-			// 		// },
-			// 		// {
-			// 		// 	PropertyID:       filters.P_ILVL,
-			// 		// 	Value:            75,
-			// 		// 	ComparisonMethod: filters.COMP_INT_EQ,
-			// 		// },
-			// 	},
-			// },
-			// {
-			// 	SearchMode: filters.SEARCH_MODE_AND,
-			// 	Filters: []filters.Filter{
-			// 		// {
-			// 		// 	PropertyID:       filters.P_BASETYPE,
-			// 		// 	Value:            "Lapis Amulet",
-			// 		// 	ComparisonMethod: filters.COMP_STR_EQ,
-			// 		// },
-			// 		{
-			// 			PropertyID:       models.P_ILVL,
-			// 			Value1:           75,
-			// 			ComparisonMethod: filters.COMP_INT_GT,
-			// 		},
-			// 	},
-			// },
-			{
-				SearchMode: filters.SEARCH_MODE_OR,
-				Filters: []filters.Filter{
-					// {
-					// 	PropertyID:       models.P_RARITY,
-					// 	Value1:           "UNIQUE",
-					// 	ComparisonMethod: filters.COMP_STR_EQ,
-					// },
-					{
-						PropertyID: models.P_NOTE,
-						Regex:      regexp.MustCompile(`~(?:price|b/o) (\d+) chaos`),
+	mSearchMgr := filters.NewSearchManager(mFetcher.NewItems)
+	go mSearchMgr.Start(failure)
 
-						Value1:                     66,
-						Value2:                     68,
-						ComparisonMethod:           filters.COMP_REGEX_FIND_COMPARE,
-						RegexMatchComparisonMethod: filters.COMP_INT_BETWEEN,
-					},
-					{
-						PropertyID: models.P_NOTE,
-						Regex:      regexp.MustCompile(`~(?:price|b/o) (\d+) chaos`),
+	wsocket.StartWS(mSearchMgr)
 
-						Value1:                     "fladhjsfdhjsfkl", //interface{}
-						Value2:                     20,
-						ComparisonMethod:           filters.COMP_REGEX_FIND_COMPARE,
-						RegexMatchComparisonMethod: filters.COMP_INT_BETWEEN,
-					},
-				},
-			},
-		},
+	for {
 	}
-	itemsOut := make(chan *models.Item, 10_000)
 
-	go mSearch.StartSearch(mFetcher.NewItems, itemsOut, exit, failure)
+	//// triggere by web
 
+	// time.Sleep(time.Second * 1)
+	// var mSearchGrps1 = []filters.SearchGroup{
+	// 	// {
+	// 	// 	SearchMode: filters.SEARCH_MODE_AND,
+	// 	// 	Filters: []filters.Filter{
+	// 	// 		// {
+	// 	// 		// 	PropertyID:       models.P_BASETYPE,
+	// 	// 		// 	Value1:           "Lapis Amulet",
+	// 	// 		// 	ComparisonMethod: filters.COMP_STR_EQ,
+	// 	// 		// },
+	// 	// 		// {
+	// 	// 		// 	PropertyID:       filters.P_ILVL,
+	// 	// 		// 	Value:            75,
+	// 	// 		// 	ComparisonMethod: filters.COMP_INT_EQ,
+	// 	// 		// },
+	// 	// 	},
+	// 	// },
+	// 	// {
+	// 	// 	SearchMode: filters.SEARCH_MODE_AND,
+	// 	// 	Filters: []filters.Filter{
+	// 	// 		// {
+	// 	// 		// 	PropertyID:       filters.P_BASETYPE,
+	// 	// 		// 	Value:            "Lapis Amulet",
+	// 	// 		// 	ComparisonMethod: filters.COMP_STR_EQ,
+	// 	// 		// },
+	// 	// 		{
+	// 	// 			PropertyID:       models.P_ILVL,
+	// 	// 			Value1:           75,
+	// 	// 			ComparisonMethod: filters.COMP_INT_GT,
+	// 	// 		},
+	// 	// 	},
+	// 	// },
+	// 	{
+	// 		SearchMode: filters.SEARCH_MODE_OR,
+	// 		Filters: []filters.Filter{
+	// 			// {
+	// 			// 	PropertyID:       models.P_RARITY,
+	// 			// 	Value1:           "UNIQUE",
+	// 			// 	ComparisonMethod: filters.COMP_STR_EQ,
+	// 			// },
+	// 			{
+	// 				PropertyID: models.P_NOTE,
+	// 				Regex:      regexp.MustCompile(`~(?:price|b/o) (\d+) chaos`),
+
+	// 				Value1:                     66,
+	// 				Value2:                     68,
+	// 				ComparisonMethod:           filters.COMP_REGEX_FIND_COMPARE,
+	// 				RegexMatchComparisonMethod: filters.COMP_INT_BETWEEN,
+	// 			},
+	// 			{
+	// 				PropertyID: models.P_NOTE,
+	// 				Regex:      regexp.MustCompile(`~(?:price|b/o) (\d+) chaos`),
+
+	// 				Value1:                     "fladhjsfdhjsfkl", //interface{}
+	// 				Value2:                     20,
+	// 				ComparisonMethod:           filters.COMP_REGEX_FIND_COMPARE,
+	// 				RegexMatchComparisonMethod: filters.COMP_INT_BETWEEN,
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	// var mSearchGrps2 = []filters.SearchGroup{
+	// 	{
+	// 		SearchMode: filters.SEARCH_MODE_AND,
+	// 		Filters: []filters.Filter{
+	// 			// {
+	// 			// 	PropertyID:       models.P_RARITY,
+	// 			// 	Value1:           "UNIQUE",
+	// 			// 	ComparisonMethod: filters.COMP_STR_EQ,
+	// 			// },
+	// 			{
+	// 				PropertyID:       models.P_NAME,
+	// 				Regex:            regexp.MustCompile("Tabula "),
+	// 				ComparisonMethod: filters.COMP_REGEX_MATCH,
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	// itemsOut1 := make(chan *models.Item, 10_000)
+	// itemsOut2 := make(chan *models.Item, 10_000)
+
+	// var newSearch1 = filters.NewSearch(mSearchGrps1, itemsOut1)
+	// var newSearch2 = filters.NewSearch(mSearchGrps2, itemsOut2)
+
+	// go dumpMatches(itemsOut1, newSearch1)
+	// go dumpMatches(itemsOut2, newSearch2)
+
+	// mSearchMgr.NewSearch(newSearch1)
+
+	// time.Sleep(10 * time.Second)
+
+	// mSearchMgr.NewSearch(newSearch2)
+
+	// time.Sleep(20 * time.Second)
+
+	// mSearchMgr.EndSearch(newSearch1.ID)
+	// mSearchMgr.EndSearch(newSearch2.ID)
+
+	// mSearchMgr.Stop()
+
+	// go mSearch.StartSearch(mFetcher.NewItems, itemsOut, exit, failure)
+
+	// go stream.NANI(itemsOut)
+
+	// time.Sleep(time.Second * 200)
+
+}
+
+func dumpMatches(itemsOut chan *models.Item, mSearch *filters.Search) {
 	for {
 		item := <-itemsOut
 
 		// fmt.Print(item.Describe(models.P_NAME, models.P_NOTE))
-		fmt.Println("Found Match: ")
+		fmt.Printf("Search %d Found Match: \n", mSearch.ID)
 		for i := range mSearch.SearchGroups {
 			for _, f := range mSearch.SearchGroups[i].Filters {
 
 				label := f.GetFilteredPropertyName(item)
 				prop := f.GetFilteredPropertyValue(item)
-				fmt.Printf("\t%v: %v\n", label, prop)
+				fmt.Printf("  %v: %v\n", label, prop)
 			}
 		}
-
 		// log.Printf("Got item %s \n", item.ID)
 	}
-
-	time.Sleep(time.Second * 40)
-
-}
-
-type test struct {
-	abc interface{}
 }
 
 func main() {
 
 	doTheThing()
+	// wsocket.NANI1()
 	// testStr := "~price 60 chaos"
 	// r, err := regexp.Compile(`~(?:price|b/o) (\d+) chaos`)
 	// if err != nil {

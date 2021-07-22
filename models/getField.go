@@ -47,16 +47,16 @@ const (
 )
 
 const (
-	P_NORMAL         = 0
-	P_MAGIC          = 1
-	P_RARE           = 2
-	P_UNIQUE         = 3
-	P_GEM            = 4
-	P_CURRENCY       = 5
-	P_DIVINATIONCARD = 6
-	P_QUESTITEM      = 7
-	P_PROPHECY       = 8
-	P_RELIC          = 9
+	FRAME_TYPE_NORMAL         = 0
+	FRAME_TYPE_MAGIC          = 1
+	FRAME_TYPE_RARE           = 2
+	FRAME_TYPE_UNIQUE         = 3
+	FRAME_TYPE_GEM            = 4
+	FRAME_TYPE_CURRENCY       = 5
+	FRAME_TYPE_DIVINATIONCARD = 6
+	FRAME_TYPE_QUESTITEM      = 7
+	FRAME_TYPE_PROPHECY       = 8
+	FRAME_TYPE_RELIC          = 9
 )
 
 func GetItemProperty(propertyID int, SubProperty string, item *Item) interface{} {
@@ -113,13 +113,13 @@ func GetItemProperty(propertyID int, SubProperty string, item *Item) interface{}
 
 	case P_RARITY:
 		switch item.FrameType {
-		case P_NORMAL:
+		case FRAME_TYPE_NORMAL:
 			return "NORMAL"
-		case P_MAGIC:
+		case FRAME_TYPE_MAGIC:
 			return "MAGIC"
-		case P_RARE:
+		case FRAME_TYPE_RARE:
 			return "RARE"
-		case P_UNIQUE:
+		case FRAME_TYPE_UNIQUE:
 			return "UNIQUE"
 		default:
 			return ""
