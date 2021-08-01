@@ -31,7 +31,7 @@ func doTheThing() {
 
 	mFetcher := &tradeApi.ApiFetcher{}
 	mFetcher.Init()
-	go mFetcher.Start("1227018323-1231611186-1189493786-1330691408-1278889110", exit, failure)
+	go mFetcher.Start("1227351031-1231948075-1189827612-1331056003-1279251828", exit, failure)
 
 	mSearchMgr := filters.NewSearchManager(mFetcher.NewItems)
 	go mSearchMgr.Start(failure)

@@ -603,6 +603,8 @@ func easyjsonD2b7633eDecodeDrhyuComIndexerModels2(in *jlexer.Lexer, out *Item) {
 			}
 		case "note":
 			out.Note = string(in.String())
+		case "accountName":
+			out.AccountName = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -862,6 +864,11 @@ func easyjsonD2b7633eEncodeDrhyuComIndexerModels2(out *jwriter.Writer, in Item) 
 		const prefix string = ",\"note\":"
 		out.RawString(prefix)
 		out.String(string(in.Note))
+	}
+	if in.AccountName != "" {
+		const prefix string = ",\"accountName\":"
+		out.RawString(prefix)
+		out.String(string(in.AccountName))
 	}
 	out.RawByte('}')
 }

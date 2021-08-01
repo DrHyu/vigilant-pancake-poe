@@ -87,6 +87,7 @@ func (searchManager *SearchManager) handleEndSearch(endSearchId uint32) error {
 	searchManager.splitter.EndSearch(endSearch)
 
 	endSearch.Stop()
+	delete(searchManager.searches, endSearch.ID)
 	return nil
 }
 

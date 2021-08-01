@@ -21,11 +21,12 @@
         console.log(msg)
       }
 
-      // c.onopen = function(){
-      //   setInterval( 
-      //     function(){ send("ping") }
-      //   , 1000 )
-      // }
+      c.onopen = function(){
+        send("HELLO WORLD")
+        // setInterval( 
+        //   function(){ send("ping") }
+        // , 1000 )
+      }
     </script>
 
   </body>

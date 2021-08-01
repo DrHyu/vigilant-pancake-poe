@@ -8,31 +8,32 @@ import (
 )
 
 type Filter struct {
-	Value1 interface{}
-	Value2 interface{}
-	Value3 interface{}
+	Value1 interface{} `json:"Value1"`
+	Value2 interface{} `json:"Value2,omitempty"`
+	Value3 interface{} `json:"Value3,omitempty"`
 
-	PropertyID  int
-	SubProperty string
+	PropertyID  int    `json:"PropertyID,omitempty"`
+	SubProperty string `json:"SubProperty,omitempty"`
 
 	// How to compare the match of the regex
-	Regex                      *regexp.Regexp
-	RegexMatchComparisonMethod int
+	RegexStr                   string         `json:"RegexStr,omitempty"`
+	Regex                      *regexp.Regexp `json:"-"`
+	RegexMatchComparisonMethod int            `json:"RegexMatchComparisonMethod,omitempty"`
 
-	ComparisonMethod int
-	InverseMatch     bool
+	ComparisonMethod int  `json:"ComparisonMethod"`
+	InverseMatch     bool `json:"InverseMatch"`
 }
 
 const (
-	COMP_INT_EQ             = iota
-	COMP_INT_GT             = iota
-	COMP_INT_LT             = iota
-	COMP_INT_GTE            = iota
-	COMP_INT_LTE            = iota
-	COMP_INT_BETWEEN        = iota
-	COMP_STR_EQ             = iota
-	COMP_REGEX_MATCH        = iota // Check if regex matches the target field
-	COMP_REGEX_FIND_COMPARE = iota // Find a match in a string and compare the match vs another number. Regex -> Value1, CMP 1 -> Value2, CMP 2 -> Value3
+	COMP_INT_EQ             = 0
+	COMP_INT_GT             = 1
+	COMP_INT_LT             = 2
+	COMP_INT_GTE            = 3
+	COMP_INT_LTE            = 4
+	COMP_INT_BETWEEN        = 5
+	COMP_STR_EQ             = 6
+	COMP_REGEX_MATCH        = 7 // Check if regex matches the target field
+	COMP_REGEX_FIND_COMPARE = 8 // Find a match in a string and compare the match vs another number. Regex -> Value1, CMP 1 -> Value2, CMP 2 -> Value3
 )
 
 func (filter *Filter) GetFilteredPropertyValue(item *models.Item) interface{} {
@@ -66,8 +67,10 @@ func (filter *Filter) ApplyTo(item *models.Item) (bool, error) {
 
 	// Attempt int casts
 	itemValInt, itemIntOk := value.(int)
-	filterVal1Int, filter1IntOk := filter.Value1.(int)
-	filterVal2Int, filter2IntOk := filter.Value2.(int)
+	tempVal1, filter1IntOk := filter.Value1.(float64)
+	filterVal1Int := int(tempVal1)
+	tempVal2, filter2IntOk := filter.Value2.(float64)
+	filterVal2Int := int(tempVal2)
 	// filterVal3Int, filter3IntOk := filter.Value3.(int)
 
 	switch filter.ComparisonMethod {

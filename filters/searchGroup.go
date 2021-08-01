@@ -9,11 +9,10 @@ import (
 )
 
 type SearchGroup struct {
-	Filters          []Filter
-	SearchMode       int
-	searchGroupIndex int
-
-	nSearchGroups int
+	Filters          []Filter `json:"Filters"`
+	SearchMode       int      `json:"SearchMode"`
+	searchGroupIndex int      `json:"-"`
+	nSearchGroups    int      `json:"-"`
 }
 
 const (

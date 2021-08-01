@@ -1,49 +1,49 @@
 package models
 
 const (
-	P_BASETYPE     = iota // BaseType     string
-	P_FRAMETYPE    = iota // FrameType    int
-	P_H            = iota // H            int
-	P_ICON         = iota // Icon         string
-	P_ID           = iota // ID           string
-	P_IDENTIFIED   = iota // Identified   bool
-	P_ILVL         = iota // Ilvl         int
-	P_INVENTORYID  = iota // InventoryID  string
-	P_LEAGUE       = iota // League       string
-	P_NAME         = iota // Name         string
-	P_TYPELINE     = iota // TypeLine    string
-	P_VERIFIED     = iota // Verified    bool
-	P_W            = iota // W           int
-	P_X            = iota // X           int
-	P_Y            = iota // Y           int
-	P_CORRUPTED    = iota // Corrupted    bool
-	P_TALISMANTIER = iota // TalismanTier int
-	P_DESCRTEXT    = iota // DescrText    string
-	P_NOTE         = iota // Note         string
+	P_BASETYPE     = 0  // BaseType     string
+	P_FRAMETYPE    = 1  // FrameType    int
+	P_H            = 2  // H            int
+	P_ICON         = 3  // Icon         string
+	P_ID           = 4  // ID           string
+	P_IDENTIFIED   = 5  // Identified   bool
+	P_ILVL         = 6  // Ilvl         int
+	P_INVENTORYID  = 7  // InventoryID  string
+	P_LEAGUE       = 8  // League       string
+	P_NAME         = 9  // Name         string
+	P_TYPELINE     = 10 // TypeLine    string
+	P_VERIFIED     = 11 // Verified    bool
+	P_W            = 12 // W           int
+	P_X            = 13 // X           int
+	P_Y            = 14 // Y           int
+	P_CORRUPTED    = 15 // Corrupted    bool
+	P_TALISMANTIER = 16 // TalismanTier int
+	P_DESCRTEXT    = 17 // DescrText    string
+	P_NOTE         = 18 // Note         string
 
-	P_EXPLICITMODS = iota // ExplicitMods []string
-	P_IMPLICITMODS = iota // ImplicitMods []string
-	P_FLAVOURTEXT  = iota // FlavourText  []string
-	P_UTILITYMODS  = iota // UtilityMods  []string
-	P_CRAFTEDMODS  = iota // CraftedMods  []string
-	P_ENCHANTMODS  = iota // EnchantMods  []string
+	P_EXPLICITMODS = 19 // ExplicitMods []string
+	P_IMPLICITMODS = 20 // ImplicitMods []string
+	P_FLAVOURTEXT  = 21 // FlavourText  []string
+	P_UTILITYMODS  = 22 // UtilityMods  []string
+	P_CRAFTEDMODS  = 23 // CraftedMods  []string
+	P_ENCHANTMODS  = 24 // EnchantMods  []string
 
-	P_PROPERTIES = iota // Properties  []struct {
+	P_PROPERTIES = 25 // Properties  []struct {
 	// 	DisplayMode int
 	// 	Name        string
 	// 	Type        int
 	// 	Values      [][]interface{}
 	// }
 	// Extended     struct {
-	P_SUBBASETYPE   = iota // BaseType      string
-	P_CATEGORY      = iota // Category      string
-	P_PREFIXES      = iota // Prefixes      int
-	P_SUBCATEGORIES = iota // Subcategories []string
-	P_SUFFIXES      = iota // Suffixes      int
+	P_SUBBASETYPE   = 26 // BaseType      string
+	P_CATEGORY      = 27 // Category      string
+	P_PREFIXES      = 28 // Prefixes      int
+	P_SUBCATEGORIES = 29 // Subcategories []string
+	P_SUFFIXES      = 30 // Suffixes      int
 	// }
 
 	// Virtual properties (made up)
-	P_RARITY = iota
+	P_RARITY = 31
 )
 
 const (

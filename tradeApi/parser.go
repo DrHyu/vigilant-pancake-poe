@@ -35,13 +35,16 @@ func (fetcher *ApiFetcher) ProcessItems(data *[]byte) (result *models.RespStruct
 		for i := range result.Stashes {
 			if result.Stashes[i].League == LEAGUE {
 				for it := range result.Stashes[i].Items {
-					select {
-					case fetcher.NewItems <- result.Stashes[i].Items[it]:
-						continue
-					default:
-						log.Printf("[ERROR] Channel full (%d/%d). Fetcher is waiting\n", len(fetcher.NewItems), cap(fetcher.NewItems))
-						// Do it anyways
-						fetcher.NewItems <- result.Stashes[i].Items[it]
+					if result.Stashes[i].Items[it].Verified {
+						result.Stashes[i].Items[it].AccountName = result.Stashes[i].AccountName
+						select {
+						case fetcher.NewItems <- result.Stashes[i].Items[it]:
+							continue
+						default:
+							log.Printf("[ERROR] Channel full (%d/%d). Fetcher is waiting\n", len(fetcher.NewItems), cap(fetcher.NewItems))
+							// Do it anyways
+							fetcher.NewItems <- result.Stashes[i].Items[it]
+						}
 					}
 				}
 			}
