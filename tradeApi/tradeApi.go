@@ -4,7 +4,7 @@ import (
 	"drhyu.com/indexer/models"
 )
 
-const LEAGUE string = "Standard"
+const LEAGUE string = "Expedition"
 
 func (fetcher *ApiFetcher) Init() {
 	// Initialize the channels

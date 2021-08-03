@@ -37,6 +37,7 @@ func (fetcher *ApiFetcher) ProcessItems(data *[]byte) (result *models.RespStruct
 				for it := range result.Stashes[i].Items {
 					if result.Stashes[i].Items[it].Verified {
 						result.Stashes[i].Items[it].AccountName = result.Stashes[i].AccountName
+
 						select {
 						case fetcher.NewItems <- result.Stashes[i].Items[it]:
 							continue
